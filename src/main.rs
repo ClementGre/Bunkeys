@@ -3,6 +3,7 @@ use num_bigint::{BigUint, RandBigInt};
 use num_traits::FromPrimitive;
 use rand::rngs::OsRng;
 mod polynom;
+mod bip39;
 
 lazy_static! {
     // 128-bit prime modulus (2¹²⁷ - 1)
@@ -17,15 +18,18 @@ lazy_static! {
 
 fn main() {
     let mut rng = OsRng::default();
-    let secret = rng.gen_biguint(128);
+    let bip39 = bip39::Bip39::new().unwrap();
+    let secret = rng.gen_biguint(127);
+    let secret_mnemonic = bip39.encode(&secret).unwrap();
     let points_number: u64 = 6;
     let threshold: usize = 3;
 
     println!("Prime: {}", *MODULUS_128);
     println!("Secret: {}", secret);
+    println!("Secret mnemonic: {}", secret_mnemonic);
 
     // A polynom of degree threshold - 1 can be determined by threshold points.
-    let polynom = polynom::Polynom::new_random_of_degree_with_constant_term(threshold - 1, secret);
+    let polynom = polynom::Polynom::new_random_of_degree_with_constant_term(threshold - 1, secret.clone());
     let points = polynom.get_firsts_n_points(points_number as usize);
 
     println!("Polynom: {}", polynom);
@@ -43,14 +47,17 @@ fn main() {
      println!("Reconstituted secret: {}", ans);
      println!("Secret: {}", polynom.coefficients[0]);
 
-    // // Testing that all combinations of threshold points are enough to find the secret
-    // use itertools::Itertools;
-    // for combo in points.iter().combinations(threshold) {
-    //     let combo_points: Vec<(u64, u64)> = combo.into_iter().map(|(x, y)| (*x, *y)).collect();
-    //     let secret_reconstituted = get_polynom_constant_value(&combo_points);
-    //     println!("Secret recostituted from points {} is {}", combo_points.iter().map(|(x, y)| format!("({}, {})", x, y)).collect::<Vec<String>>().join(", "), secret_reconstituted);
-    //     assert_eq!(secret_reconstituted as u64, secret);
-    // }
+
+    // Testing that all combinations of threshold points are enough to find the secret
+    use itertools::Itertools;
+    for combo in points.iter().combinations(threshold) {
+        let combo_points: Vec<(BigUint, BigUint)> = combo.into_iter().map(|(x, y)| (x.clone(), y.clone())).collect();
+        let secret_reconstituted = get_polynom_constant_value(&combo_points);
+        //println!("Secret recostituted from points {} is {}", combo_points.iter().map(|(x, y)| format!("({}, {})", x, y)).collect::<Vec<String>>().join(", "), secret_reconstituted);
+        assert_eq!(secret_reconstituted, secret);
+        let secret_mnemonic_reconstituted = bip39.encode(&secret_reconstituted).unwrap();
+        assert_eq!(secret_mnemonic, secret_mnemonic_reconstituted);
+    }
 }
 
 // Reconstructs the constant term of a polynomial from shares using modular arithmetic.

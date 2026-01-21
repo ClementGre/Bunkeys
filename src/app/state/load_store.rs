@@ -8,7 +8,7 @@ use crate::store::Store;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Position, Rect};
 use ratatui::prelude::{Color, Line, Span, Style};
-use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::widgets::Paragraph;
 use ratatui::Frame;
 use std::env;
 use std::path::PathBuf;
@@ -57,6 +57,17 @@ impl LoadStoreState {
 }
 
 impl AppStateEvents for LoadStoreState {
+    fn get_title(&self, _data: &AppData) -> String {
+        match &self.step {
+            AppLoadStoreStep::EnterPath(_) => "Load Store - Enter Path".to_string(),
+            AppLoadStoreStep::EnterKey(_) => "Load Store - Enter Key".to_string(),
+        }
+    }
+
+    fn get_footer(&self, _data: &AppData) -> &'static str {
+        "[Esc: Cancel] [⏎ Enter: Continue]"
+    }
+
     fn handle_key(&self, data: &mut AppData, key: KeyEvent) -> AppState {
         match self.step.clone() {
             AppLoadStoreStep::EnterPath(path) => match key.code {
@@ -85,7 +96,7 @@ impl AppStateEvents for LoadStoreState {
                 KeyCode::Esc => MainMenuState::new(MainMenuAction::LoadStore).into(),
                 _ => self.clone().into(),
             },
-            AppLoadStoreStep::EnterKey(mut raw_key) => match key.code {
+            AppLoadStoreStep::EnterKey(raw_key) => match key.code {
                 KeyCode::Char(c) => {
                     LoadStoreState::new_key(self.encrypted, raw_key.with_insert_char(c)).into()
                 }
@@ -117,12 +128,11 @@ impl AppStateEvents for LoadStoreState {
     }
 
     fn render(&self, _data: &AppData, frame: &mut Frame, area: Rect) {
-        let (title, prompt, input) = match &self.step {
+        let (prompt, input) = match &self.step {
             AppLoadStoreStep::EnterPath(input) => {
-                ("Load Store - Enter Path", "Enter store file path:", input)
+                ("Enter store file path:", input)
             }
             AppLoadStoreStep::EnterKey(input) => (
-                "Load Store - Enter Key",
                 "Enter key (hex or BIP39 mnemonic):",
                 input,
             ),
@@ -134,16 +144,11 @@ impl AppStateEvents for LoadStoreState {
             Line::from(Span::styled(input.text.clone(), Style::default().fg(Color::Yellow))),
         ];
         frame.set_cursor_position(Position::new(
-            area.x + input.cursor_pos as u16 + 1,
-            area.y + 3,
+            area.x + input.cursor_pos as u16,
+            area.y + 2,
         ));
 
-        let paragraph = Paragraph::new(text).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(title)
-                .title_bottom("[Esc: Cancel] [Enter: Continue]"),
-        );
+        let paragraph = Paragraph::new(text);
 
         frame.render_widget(paragraph, area);
     }

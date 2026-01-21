@@ -1,10 +1,11 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
-use ratatui::prelude::{Color, Rect, Style, Stylize};
-use ratatui::widgets::{Block, Borders, List, ListItem};
+use ratatui::prelude::{Color, Rect, Style, Stylize, Constraint, Layout, Direction};
+use ratatui::widgets::{Table, Row, Cell};
+use ratatui::text::Text;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
-use crate::app::{App, AppState};
+use crate::app::AppState;
 use crate::app::data::AppData;
 use crate::app::state::AppStateEvents;
 use crate::app::state::init_store::InitStoreState;
@@ -24,14 +25,14 @@ pub enum MainMenuAction {
 }
 
 impl MainMenuAction {
-    pub fn to_string(&self) -> &'static str {
+    pub fn to_string(&self) -> (&'static str, &'static str) {
         match self {
-            MainMenuAction::InitStore => "Init Store - Generate new 256-bit key and create empty store",
-            MainMenuAction::LoadStore => "Load Store - Load existing store from file",
-            MainMenuAction::LoadUnencryptedStore => "Load Store Data From Unencrypted File - Load current store data from unencrypted file",
-            MainMenuAction::EditStore => "Edit Store - View and modify store contents",
-            MainMenuAction::SaveStore => "Save Store - Save store to file",
-            MainMenuAction::SaveUnencryptedStore => "Save Unencrypted Store - Save store to file without encryption (NOT RECOMMENDED!)",
+            MainMenuAction::InitStore => ("Init Store", "Generate new 256-bit key and create empty store"),
+            MainMenuAction::LoadStore => ("Load Store", "Load existing store from file"),
+            MainMenuAction::LoadUnencryptedStore => ("Load Store Data From Unencrypted File", "Load current store data from unencrypted file"),
+            MainMenuAction::EditStore => ("Edit Store", "View and modify store contents"),
+            MainMenuAction::SaveStore => ("Save Store", "Save store to file"),
+            MainMenuAction::SaveUnencryptedStore => ("Save Unencrypted Store", "Save store to file without encryption (NOT RECOMMENDED!)"),
         }
     }
     pub fn requires_store(&self) -> bool {
@@ -54,6 +55,17 @@ impl MainMenuState {
 }
 
 impl AppStateEvents for MainMenuState {
+    fn get_title(&self, data: &AppData) -> String {
+        let mut title = "Main Menu".to_string();
+        if data.store_key.is_some() {
+            title.push_str(" - 🔓 Store Loaded");
+        }
+        title
+    }
+
+    fn get_footer(&self, _data: &AppData) -> &'static str {
+        "[ q: Quit ] [ ↑/↓: Navigate ] [ ⏎ Enter: Select ]"
+    }
 
     fn handle_key(&self, data: &mut AppData, key: KeyEvent) -> AppState {
         match key.code {
@@ -99,29 +111,103 @@ impl AppStateEvents for MainMenuState {
         }
     }
 
-    fn render(&self, data: &AppData, frame: &mut Frame, area: Rect) {
-        let items = MainMenuAction::iter().map(|a| {
-            let mut item = ListItem::new(a.to_string());
-            if a == self.selected_action {
-                item = item.clone().bg(Color::LightYellow).fg(Color::Black);
-            }
-            item
-        }).collect::<Vec<_>>();
+    fn render(&self, _data: &AppData, frame: &mut Frame, area: Rect) {
+        // Create table rows with enhanced styling
+        let mut rows = Vec::new();
+        let actions: Vec<_> = MainMenuAction::iter().collect();
 
-        let mut title = "Main Menu".to_string();
-        if data.store_key.is_some() {
-            title.push_str(" [Store Loaded]");
+        for (idx, a) in actions.iter().enumerate() {
+            let (name, description) = a.to_string();
+            let is_selected = a == &self.selected_action;
+
+            // Add icons for each action
+            let icon = match a {
+                MainMenuAction::InitStore => "🔑",
+                MainMenuAction::LoadStore => "📂",
+                MainMenuAction::LoadUnencryptedStore => "📄",
+                MainMenuAction::EditStore => "✏️",
+                MainMenuAction::SaveStore => "💾",
+                MainMenuAction::SaveUnencryptedStore => "⚠️",
+            };
+
+            let icon_cell = Cell::from(Text::from(format!(" {} ", icon)));
+            let name_cell = Cell::from(Text::from(name).style(
+                if is_selected {
+                    Style::default().bold()
+                } else {
+                    Style::default()
+                }
+            ));
+            let desc_cell = Cell::from(Text::from(description).style(
+                if is_selected {
+                    Style::default()
+                } else {
+                    Style::default().fg(Color::Gray)
+                }
+            ));
+
+            let row = Row::new(vec![icon_cell, name_cell, desc_cell]);
+            if is_selected {
+                rows.push(row.style(Style::default().bg(Color::Yellow).fg(Color::Black)));
+            } else {
+                rows.push(row);
+            }
+
+            // Add separator row (except after last item)
+            if idx < actions.len() - 1 {
+                let separator = Row::new(vec![
+                    Cell::from(""),
+                    Cell::from("─".repeat(40)),
+                    Cell::from(""),
+                ]).style(Style::default().fg(Color::DarkGray));
+                rows.push(separator);
+            }
         }
 
-        let list = List::new(items)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(title)
-                    .title_bottom("[q: Quit] [Enter: Select]"),
-            )
+        let min_title_width = MainMenuAction::iter()
+            .map(|a| a.to_string().0.len())
+            .max()
+            .unwrap_or(0);
+        let min_desc_width = MainMenuAction::iter()
+            .map(|a| a.to_string().1.len())
+            .max()
+            .unwrap_or(0);
+
+        let table = Table::new(
+            rows,
+            [
+                Constraint::Length(4),  // Icon column (fixed width)
+                Constraint::Length(min_title_width as u16),
+                Constraint::Length(min_desc_width as u16)
+            ]
+        )
+            .column_spacing(2)
             .style(Style::default().fg(Color::White));
 
-        frame.render_widget(list, area);
+        let num_actions = MainMenuAction::iter().count();
+        let table_height = (num_actions + (num_actions - 1)) as u16; // actions + separators
+        let table_width = (4 + min_title_width + min_desc_width + 4) as u16; // columns + spacing
+
+        // Center vertically within the area
+        let vertical_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Fill(1),
+                Constraint::Length(table_height),
+                Constraint::Fill(1),
+            ])
+            .split(area);
+
+        // Center horizontally within the area
+        let horizontal_layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Fill(1),
+                Constraint::Length(table_width),
+                Constraint::Fill(1),
+            ])
+            .split(vertical_layout[1]);
+
+        frame.render_widget(table, horizontal_layout[1]);
     }
 }

@@ -4,8 +4,8 @@ use ratatui::layout::Rect;
 use aead::OsRng;
 use rand::RngCore;
 use ratatui::prelude::{Color, Line, Modifier, Span, Style};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
-use crate::app::{AppState};
+use ratatui::widgets::{Paragraph, Wrap};
+use crate::app::AppState;
 use crate::app::data::{AppData};
 use crate::app::state::AppStateEvents;
 use crate::app::state::main_menu::{MainMenuAction, MainMenuState};
@@ -51,6 +51,13 @@ impl InitStoreState {
 }
 
 impl AppStateEvents for InitStoreState {
+    fn get_title(&self, _data: &AppData) -> String {
+        "Initialize Store".to_string()
+    }
+
+    fn get_footer(&self, _data: &AppData) -> &'static str {
+        "[Esc: Cancel] [⏎ Enter: Initialize Store]"
+    }
 
     fn handle_key(&self, data: &mut AppData, key: KeyEvent) -> AppState {
         match key.code {
@@ -97,15 +104,7 @@ impl AppStateEvents for InitStoreState {
             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         )));
 
-        let paragraph = Paragraph::new(text)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title("Initialize Store")
-                    .title_bottom("[Esc: Cancel] [Enter: Initialize Store]"),
-            )
-            .wrap(Wrap { trim: false });
-
+        let paragraph = Paragraph::new(text).wrap(Wrap { trim: false });
         frame.render_widget(paragraph, area);
     }
 }

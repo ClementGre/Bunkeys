@@ -18,6 +18,8 @@ pub mod save_store;
 
 #[enum_dispatch(AppState)]
 pub trait AppStateEvents {
+    fn get_title(&self, data: &AppData) -> String;
+    fn get_footer(&self, data: &AppData) -> &'static str;
     fn handle_key(&self, data: &mut AppData, key: KeyEvent) -> AppState;
     fn render(&self, data: &AppData, frame: &mut Frame, area: Rect);
 }

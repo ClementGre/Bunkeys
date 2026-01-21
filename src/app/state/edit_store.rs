@@ -1,8 +1,8 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::widgets::{Block, Borders, List, ListItem};
-use crate::app::{AppState};
+use ratatui::widgets::{List, ListItem};
+use crate::app::AppState;
 use crate::app::data::AppData;
 use crate::app::state::AppStateEvents;
 use crate::app::state::main_menu::{MainMenuAction, MainMenuState};
@@ -17,6 +17,14 @@ impl EditStoreState {
 }
 
 impl AppStateEvents for EditStoreState {
+    fn get_title(&self, _data: &AppData) -> String {
+        "Edit Store".to_string()
+    }
+
+    fn get_footer(&self, _data: &AppData) -> &'static str {
+        "[Esc: Cancel] [ ↑/↓: Navigate ] [ ⏎ Enter: Edit ]"
+    }
+
     fn handle_key(&self, _data: &mut AppData, key: KeyEvent) -> AppState {
         match key.code {
             KeyCode::Esc => {
@@ -43,9 +51,7 @@ impl AppStateEvents for EditStoreState {
             }
         }
 
-        let list = List::new(items).block(Block::default().borders(Borders::ALL).title("Edit Store")
-            .title_bottom("[Esc: Cancel] [Enter: Edit Section]"));
-
+        let list = List::new(items);
         frame.render_widget(list, area);
     }
 }

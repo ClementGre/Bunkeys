@@ -4,7 +4,7 @@ use crate::app::state::{AppState, AppStateEvents};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Line, Modifier, Position, Span, Style};
-use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::widgets::Paragraph;
 use ratatui::Frame;
 use std::env;
 use std::path::PathBuf;
@@ -37,6 +37,14 @@ impl SaveStoreState {
 }
 
 impl AppStateEvents for SaveStoreState {
+    fn get_title(&self, _data: &AppData) -> String {
+        "Save Store".to_string()
+    }
+
+    fn get_footer(&self, _data: &AppData) -> &'static str {
+        "[Esc: Cancel] [⏎ Enter: Continue]"
+    }
+
     fn handle_key(&self, data: &mut AppData, key: KeyEvent) -> AppState {
         match key.code {
             KeyCode::Char(c) => {
@@ -75,8 +83,8 @@ impl AppStateEvents for SaveStoreState {
             )),
         ];
         frame.set_cursor_position(Position::new(
-            area.x + self.path.cursor_pos as u16 + 1,
-            area.y + 3,
+            area.x + self.path.cursor_pos as u16,
+            area.y + 2,
         ));
 
         if !self.encrypted {
@@ -87,13 +95,7 @@ impl AppStateEvents for SaveStoreState {
             )));
         }
 
-        let paragraph = Paragraph::new(text).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Save Store")
-                .title_bottom("[Esc: Cancel] [Enter: Continue]"),
-        );
-
+        let paragraph = Paragraph::new(text);
 
         frame.render_widget(paragraph, area);
     }

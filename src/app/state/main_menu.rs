@@ -4,7 +4,7 @@ use ratatui::prelude::{Color, Rect, Style, Stylize};
 use ratatui::widgets::{Block, Borders, List, ListItem};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
-use crate::app::AppState;
+use crate::app::{App, AppState};
 use crate::app::data::AppData;
 use crate::app::state::AppStateEvents;
 use crate::app::state::init_store::InitStoreState;
@@ -79,35 +79,19 @@ impl AppStateEvents for MainMenuState {
                         InitStoreState::try_init(data)
                     },
                     MainMenuAction::LoadStore => {
-                        LoadStoreState::new_path(true, None).into()
+                        LoadStoreState::new(true, data.get_store_path_string_as_enc()).into()
                     },
                     MainMenuAction::LoadUnencryptedStore => {
-                        LoadStoreState::new_path(false, None).into()
+                        LoadStoreState::new(false, data.get_store_path_string_as_yaml()).into()
                     }
                     MainMenuAction::EditStore => {
                         EditStoreState::new().into()
                     }
                     MainMenuAction::SaveStore => {
-                        let path = data.store_path.clone().map(|p| {
-                            let mut path = p.to_string_lossy().to_string();
-                            if path.ends_with(".yaml") {
-                                path = path[..path.len()-5].to_string();
-                                path.push_str(".enc");
-                            }
-                            path
-                        });
-                        SaveStoreState::new(true, path).into()
+                        SaveStoreState::new(true, data.get_store_path_string_as_enc()).into()
                     }
                     MainMenuAction::SaveUnencryptedStore => {
-                        let path = data.store_path.clone().map(|p| {
-                            let mut path = p.to_string_lossy().to_string();
-                            if path.ends_with(".enc") {
-                                path = path[..path.len()-4].to_string();
-                                path.push_str(".yaml");
-                            }
-                            path
-                        });
-                        SaveStoreState::new(false, path).into()
+                        SaveStoreState::new(false, data.get_store_path_string_as_yaml()).into()
                     }
                 }
             }

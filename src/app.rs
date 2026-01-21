@@ -1,5 +1,6 @@
 pub mod state;
 pub mod data;
+mod text_input;
 
 use crossterm::event::KeyEvent;
 use ratatui::layout::{Constraint, Direction, Layout};
@@ -44,7 +45,7 @@ impl App {
 
         // Render header
         frame.render_widget(
-            Paragraph::new("Shamir Store manager")
+            Paragraph::new("Bunkeys Store manager")
                 .block(Block::default().borders(Borders::ALL).style(Color::Cyan)),
             chunks[0],
         );

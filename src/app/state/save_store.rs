@@ -1,18 +1,19 @@
-use std::env;
 use crate::app::data::AppData;
 use crate::app::state::main_menu::{MainMenuAction, MainMenuState};
 use crate::app::state::{AppState, AppStateEvents};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
-use ratatui::prelude::{Color, Line, Modifier, Span, Style};
+use ratatui::prelude::{Color, Line, Modifier, Position, Span, Style};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
+use std::env;
 use std::path::PathBuf;
+use crate::app::text_input::TextInput;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SaveStoreState {
     encrypted: bool,
-    path: String,
+    path: TextInput,
 }
 
 impl SaveStoreState {
@@ -21,10 +22,16 @@ impl SaveStoreState {
             let current_path = env::current_dir().unwrap().to_string_lossy().to_string();
             if encrypted {
                 current_path + "/store.enc"
-            }else {
+            } else {
                 current_path + "/store.yaml"
             }
         });
+        Self {
+            encrypted,
+            path: TextInput::new(path),
+        }
+    }
+    fn from_text_input(encrypted: bool, path: TextInput) -> Self {
         Self { encrypted, path }
     }
 }
@@ -33,17 +40,20 @@ impl AppStateEvents for SaveStoreState {
     fn handle_key(&self, data: &mut AppData, key: KeyEvent) -> AppState {
         match key.code {
             KeyCode::Char(c) => {
-                let mut new_path = self.path.clone();
-                new_path.push(c);
-                SaveStoreState::new(self.encrypted, Some(new_path)).into()
+                SaveStoreState::from_text_input(self.encrypted, self.path.with_insert_char(c))
+                    .into()
+            }
+            KeyCode::Left => {
+                SaveStoreState::from_text_input(self.encrypted, self.path.with_move_left()).into()
+            }
+            KeyCode::Right => {
+                SaveStoreState::from_text_input(self.encrypted, self.path.with_move_right()).into()
             }
             KeyCode::Backspace => {
-                let mut new_path = self.path.clone();
-                new_path.pop();
-                SaveStoreState::new(self.encrypted, Some(new_path)).into()
+                SaveStoreState::from_text_input(self.encrypted, self.path.with_delete_char()).into()
             }
             KeyCode::Enter => {
-                if !self.path.is_empty() {
+                if !self.path.text.is_empty() {
                     self.clone().try_save_store(data)
                 } else {
                     data.error = Some("Path cannot be empty".to_string());
@@ -59,8 +69,15 @@ impl AppStateEvents for SaveStoreState {
         let mut text = vec![
             Line::from("Enter store file path:"),
             Line::from(""),
-            Line::from(Span::styled(&self.path, Style::default().fg(Color::Yellow))),
+            Line::from(Span::styled(
+                &self.path.text,
+                Style::default().fg(Color::Yellow),
+            )),
         ];
+        frame.set_cursor_position(Position::new(
+            area.x + self.path.cursor_pos as u16 + 1,
+            area.y + 3,
+        ));
 
         if !self.encrypted {
             text.push(Line::from(""));
@@ -77,17 +94,18 @@ impl AppStateEvents for SaveStoreState {
                 .title_bottom("[Esc: Cancel] [Enter: Continue]"),
         );
 
+
         frame.render_widget(paragraph, area);
     }
 }
 
 impl SaveStoreState {
     fn try_save_store(self, data: &mut AppData) -> AppState {
-        let path = PathBuf::from(&self.path);
+        let path = PathBuf::from(&self.path.text);
 
         let key = if self.encrypted {
             Some(data.store_key.clone().unwrap())
-        }else {
+        } else {
             None
         };
 

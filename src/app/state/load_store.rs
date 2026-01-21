@@ -1,11 +1,12 @@
 use crate::app::data::AppData;
 use crate::app::state::main_menu::{MainMenuAction, MainMenuState};
 use crate::app::state::AppStateEvents;
+use crate::app::text_input::TextInput;
 use crate::app::AppState;
 use crate::bip39;
 use crate::store::Store;
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::layout::Rect;
+use ratatui::layout::{Position, Rect};
 use ratatui::prelude::{Color, Line, Span, Style};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
@@ -14,13 +15,13 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AppLoadStoreStep {
-    EnterPath(String),
-    EnterKey(String),
+    EnterPath(TextInput),
+    EnterKey(TextInput),
 }
 impl Default for AppLoadStoreStep {
     fn default() -> Self {
         let current_path = env::current_dir().unwrap().to_string_lossy().to_string();
-        AppLoadStoreStep::EnterPath(current_path + "/store.enc")
+        AppLoadStoreStep::EnterPath(TextInput::new(current_path + "/store.enc"))
     }
 }
 
@@ -30,7 +31,7 @@ pub struct LoadStoreState {
     step: AppLoadStoreStep,
 }
 impl LoadStoreState {
-    pub fn new_path(encrypted: bool, path: Option<String>) -> Self {
+    pub fn new(encrypted: bool, path: Option<String>) -> Self {
         let path = path.unwrap_or_else(|| {
             let current_path = env::current_dir().unwrap().to_string_lossy().to_string();
             if encrypted {
@@ -39,15 +40,18 @@ impl LoadStoreState {
                 current_path + "/store.yaml"
             }
         });
+        Self::new_path(encrypted, TextInput::new(path))
+    }
+    fn new_path(encrypted: bool, path: TextInput) -> Self {
         Self {
             encrypted,
             step: AppLoadStoreStep::EnterPath(path),
         }
     }
-    fn new_key(encrypted: bool, key: String) -> Self {
+    fn new_key(encrypted: bool, raw_key: TextInput) -> Self {
         Self {
             encrypted,
-            step: AppLoadStoreStep::EnterKey(key),
+            step: AppLoadStoreStep::EnterKey(raw_key),
         }
     }
 }
@@ -55,40 +59,48 @@ impl LoadStoreState {
 impl AppStateEvents for LoadStoreState {
     fn handle_key(&self, data: &mut AppData, key: KeyEvent) -> AppState {
         match self.step.clone() {
-            AppLoadStoreStep::EnterPath(mut path) => match key.code {
+            AppLoadStoreStep::EnterPath(path) => match key.code {
                 KeyCode::Char(c) => {
-                    path.push(c);
-                    LoadStoreState::new_path(self.encrypted, Some(path)).into()
+                    LoadStoreState::new_path(self.encrypted, path.with_insert_char(c)).into()
                 }
                 KeyCode::Backspace => {
-                    path.pop();
-                    LoadStoreState::new_path(self.encrypted, Some(path)).into()
+                    LoadStoreState::new_path(self.encrypted, path.with_delete_char()).into()
+                }
+                KeyCode::Left => {
+                    LoadStoreState::new_path(self.encrypted, path.with_move_left()).into()
+                }
+                KeyCode::Right => {
+                    LoadStoreState::new_path(self.encrypted, path.with_move_right()).into()
                 }
                 KeyCode::Enter => {
-                    if !path.is_empty() {
-                        data.store_path = Some(PathBuf::from(path));
+                    if !path.text.is_empty() {
+                        data.store_path = Some(PathBuf::from(path.text.clone()));
                         if !self.encrypted {
                             return self.try_load_store(data, None);
                         }
-                        return LoadStoreState::new_key(self.encrypted, String::default()).into();
+                        return LoadStoreState::new_key(self.encrypted, TextInput::default()).into();
                     }
-                    LoadStoreState::new_path(self.encrypted, Some(path)).into()
+                    LoadStoreState::new_path(self.encrypted, path.clone()).into()
                 }
                 KeyCode::Esc => MainMenuState::new(MainMenuAction::LoadStore).into(),
                 _ => self.clone().into(),
             },
             AppLoadStoreStep::EnterKey(mut raw_key) => match key.code {
                 KeyCode::Char(c) => {
-                    raw_key.push(c);
-                    LoadStoreState::new_key(self.encrypted, raw_key).into()
+                    LoadStoreState::new_key(self.encrypted, raw_key.with_insert_char(c)).into()
                 }
                 KeyCode::Backspace => {
-                    raw_key.pop();
-                    LoadStoreState::new_key(self.encrypted, raw_key).into()
+                    LoadStoreState::new_key(self.encrypted, raw_key.with_delete_char()).into()
+                }
+                KeyCode::Left => {
+                    LoadStoreState::new_key(self.encrypted, raw_key.with_move_left()).into()
+                }
+                KeyCode::Right => {
+                    LoadStoreState::new_key(self.encrypted, raw_key.with_move_right()).into()
                 }
                 KeyCode::Enter => {
-                    if !raw_key.is_empty() {
-                        return match Self::parse_raw_key(raw_key.clone()) {
+                    if !raw_key.text.is_empty() {
+                        return match Self::parse_raw_key(raw_key.text.clone()) {
                             Ok(key) => self.try_load_store(data, Some(key)),
                             Err(e) => {
                                 data.error = Some(e);
@@ -119,8 +131,12 @@ impl AppStateEvents for LoadStoreState {
         let text = vec![
             Line::from(prompt),
             Line::from(""),
-            Line::from(Span::styled(input, Style::default().fg(Color::Yellow))),
+            Line::from(Span::styled(input.text.clone(), Style::default().fg(Color::Yellow))),
         ];
+        frame.set_cursor_position(Position::new(
+            area.x + input.cursor_pos as u16 + 1,
+            area.y + 3,
+        ));
 
         let paragraph = Paragraph::new(text).block(
             Block::default()
@@ -181,7 +197,7 @@ impl LoadStoreState {
 
         if self.encrypted && key.is_none() {
             data.error = Some("Encryption key is undefined".to_string());
-            return self.clone().into()
+            return self.clone().into();
         }
 
         // Try to load and decrypt the file

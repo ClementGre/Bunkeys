@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "ShamirStore"
+name = "Bunkeys"
 version = "0.1.0"
 dependencies = [
  "aead",

@@ -23,3 +23,26 @@ impl Default for AppData {
         }
     }
 }
+
+impl AppData {
+    pub fn get_store_path_string_as_enc(&self) -> Option<String> {
+        self.store_path.clone().map(|p| {
+            let mut path = p.to_string_lossy().to_string();
+            if path.ends_with(".yaml") {
+                path = path[..path.len()-5].to_string();
+                path.push_str(".enc");
+            }
+            path
+        })
+    }
+    pub fn get_store_path_string_as_yaml(&self) -> Option<String> {
+        self.store_path.clone().map(|p| {
+            let mut path = p.to_string_lossy().to_string();
+            if path.ends_with(".enc") {
+                path = path[..path.len()-4].to_string();
+                path.push_str(".yaml");
+            }
+            path
+        })
+    }
+}

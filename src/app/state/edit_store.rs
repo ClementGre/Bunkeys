@@ -43,11 +43,8 @@ impl AppStateEvents for EditStoreState {
             }
         }
 
-        items.push(ListItem::new(""));
-        items.push(ListItem::new("Press ESC to return to main menu"));
-        items.push(ListItem::new("(Edit functionality coming soon)"));
-
-        let list = List::new(items).block(Block::default().borders(Borders::ALL).title("Edit Store"));
+        let list = List::new(items).block(Block::default().borders(Borders::ALL).title("Edit Store")
+            .title_bottom("[Esc: Cancel] [Enter: Edit Section]"));
 
         frame.render_widget(list, area);
     }

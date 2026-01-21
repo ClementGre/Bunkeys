@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use clap::builder::Str;
+use crate::encrypt::{decrypt_string, encrypt_string};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Store {
@@ -45,32 +45,47 @@ impl Store {
             .remove(entry);
     }
 
-    // Load
-    pub fn load_encrypted(path: PathBuf) -> Result<Store, String> {
+    pub fn load(encryption_key: Option<Vec<u8>>, path: PathBuf) -> Result<Store, String> {
+        // Read the encrypted data from the file
        let encrypted_data = match fs::read(path) {
             Ok(encrypted_data) => encrypted_data,
             Err(e) => return Err(format!("Failed to read file: {}", e)),
         };
 
-        // TODO: implement encryption
-        let yaml_data = encrypted_data;
+        // Decrypt the YAML data
+        let yaml_data = if let Some(key) = encryption_key {
+            match decrypt_string(key, encrypted_data) {
+                Ok(data) => data,
+                Err(e) => return Err(format!("Failed to decrypt store data: {}", e))
+            }
+        }else {
+            encrypted_data
+        };
 
+        // Deserialize the YAML data into a Store object
         serde_yaml::from_slice::<Store>(&yaml_data)
             .map_err(|e| format!("Failed to parse store data: {}", e))
     }
 
     // Save
-    pub fn save_encrypted(&self, path: PathBuf) -> Result<String, String> {
-        // Serialize the store data to YAML
+    pub fn save(&self, encryption_key: Option<Vec<u8>>, path: PathBuf) -> Result<String, String> {
+        // Serialize the store data into YAML
         let yaml_data = match serde_yaml::to_string(self) {
-            Ok(data) => data,
+            Ok(data) => data.into_bytes(),
             Err(e) => return Err(format!("Failed to serialize store data: {}", e)),
         };
 
-        // TODO: implement encryption
-        let encrypted_data = yaml_data;
+        // Encrypt the YAML data
+        let encrypted_data = if let Some(key) = encryption_key {
+            match encrypt_string(key, yaml_data) {
+                Ok(data) => data,
+                Err(e) => return Err(format!("Failed to encrypt store data: {}", e))
+            }
+        }else {
+            yaml_data
+        };
 
-        // Write to file
+        // Write the encrypted data to the file
         match fs::write(&path, encrypted_data) {
             Ok(_) => Ok("Store saved successfully!".to_string()),
             Err(e) => Err(format!("Failed to write file: {}", e)),

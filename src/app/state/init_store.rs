@@ -57,7 +57,7 @@ impl AppStateEvents for InitStoreState {
             KeyCode::Enter => {
                 data.store_key = Some(self.generated_key.clone());
                 data.store_data = Store::default();
-                data.store_data.set("section", "key", "value".to_string());
+                data.store_data.set("example_section", "key", "value".to_string());
                 data.store_data.set("section2", "entry_name", "val".to_string());
                 data.store_data.set("section2", "Nom test", "Secret key".to_string());
                 MainMenuState::new(MainMenuAction::EditStore).into()
@@ -96,15 +96,13 @@ impl AppStateEvents for InitStoreState {
             "⚠ IMPORTANT: Save this key securely! You will need it to access your store.",
             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         )));
-        text.push(Line::from(""));
-        text.push(Line::from("Press ENTER to confirm and initialize store"));
-        text.push(Line::from("Press ESC to cancel and return to main menu"));
 
         let paragraph = Paragraph::new(text)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .title("Initialize Store"),
+                    .title("Initialize Store")
+                    .title_bottom("[Esc: Cancel] [Enter: Initialize Store]"),
             )
             .wrap(Wrap { trim: false });
 

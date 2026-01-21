@@ -1,4 +1,3 @@
-use std::env;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::prelude::{Color, Rect, Style, Stylize};
@@ -18,8 +17,10 @@ pub enum MainMenuAction {
     InitStore,
     #[default]
     LoadStore,
+    LoadUnencryptedStore,
     EditStore,
     SaveStore,
+    SaveUnencryptedStore,
 }
 
 impl MainMenuAction {
@@ -27,8 +28,16 @@ impl MainMenuAction {
         match self {
             MainMenuAction::InitStore => "Init Store - Generate new 256-bit key and create empty store",
             MainMenuAction::LoadStore => "Load Store - Load existing store from file",
+            MainMenuAction::LoadUnencryptedStore => "Load Store Data From Unencrypted File - Load current store data from unencrypted file",
             MainMenuAction::EditStore => "Edit Store - View and modify store contents",
             MainMenuAction::SaveStore => "Save Store - Save store to file",
+            MainMenuAction::SaveUnencryptedStore => "Save Unencrypted Store - Save store to file without encryption (NOT RECOMMENDED!)",
+        }
+    }
+    pub fn requires_store(&self) -> bool {
+        match self {
+            MainMenuAction::LoadUnencryptedStore | MainMenuAction::EditStore | MainMenuAction::SaveStore | MainMenuAction::SaveUnencryptedStore => true,
+            _ => false,
         }
     }
 }
@@ -61,33 +70,44 @@ impl AppStateEvents for MainMenuState {
                 MainMenuState::new(actions[next_idx].clone()).into()
             }
             KeyCode::Enter => {
+                if self.selected_action.requires_store() && data.store_key.is_none() {
+                    data.error = Some("No store loaded. Please load or init a store first.".to_string());
+                    return self.clone().into();
+                }
                 match self.selected_action {
                     MainMenuAction::InitStore => {
                         InitStoreState::try_init(data)
                     },
                     MainMenuAction::LoadStore => {
-                        LoadStoreState::default().into()
+                        LoadStoreState::new_path(true, None).into()
                     },
+                    MainMenuAction::LoadUnencryptedStore => {
+                        LoadStoreState::new_path(false, None).into()
+                    }
                     MainMenuAction::EditStore => {
-                        if data.store_key.is_some() {
-                            EditStoreState::new().into()
-                        } else {
-                            data.error = Some("No store loaded. Please load or init a store first.".to_string());
-                            self.clone().into()
-                        }
+                        EditStoreState::new().into()
                     }
                     MainMenuAction::SaveStore => {
-                        if data.store_key.is_some() {
-                            let current_path = env::current_dir().unwrap().to_string_lossy().to_string();
-                            let path = match &data.store_path {
-                                Some(path) => path.to_string_lossy().to_string(),
-                                None => current_path + "/store.enc"
-                            };
-                            SaveStoreState::new(path).into()
-                        } else {
-                            data.error = Some("No store loaded. Please load or init a store first.".to_string());
-                            self.clone().into()
-                        }
+                        let path = data.store_path.clone().map(|p| {
+                            let mut path = p.to_string_lossy().to_string();
+                            if path.ends_with(".yaml") {
+                                path = path[..path.len()-5].to_string();
+                                path.push_str(".enc");
+                            }
+                            path
+                        });
+                        SaveStoreState::new(true, path).into()
+                    }
+                    MainMenuAction::SaveUnencryptedStore => {
+                        let path = data.store_path.clone().map(|p| {
+                            let mut path = p.to_string_lossy().to_string();
+                            if path.ends_with(".enc") {
+                                path = path[..path.len()-4].to_string();
+                                path.push_str(".yaml");
+                            }
+                            path
+                        });
+                        SaveStoreState::new(false, path).into()
                     }
                 }
             }

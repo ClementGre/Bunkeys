@@ -1,23 +1,31 @@
-use std::fs;
-use std::path::PathBuf;
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::Frame;
-use ratatui::layout::Rect;
-use ratatui::prelude::{Color, Line, Span, Style};
-use ratatui::widgets::{Block, Borders, Paragraph};
+use std::env;
 use crate::app::data::AppData;
-use crate::app::state::{AppState, AppStateEvents};
-use crate::app::state::load_store::AppLoadStoreStep;
 use crate::app::state::main_menu::{MainMenuAction, MainMenuState};
+use crate::app::state::{AppState, AppStateEvents};
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::layout::Rect;
+use ratatui::prelude::{Color, Line, Modifier, Span, Style};
+use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::Frame;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SaveStoreState {
+    encrypted: bool,
     path: String,
 }
 
 impl SaveStoreState {
-    pub fn new(path: String) -> Self {
-        Self { path }
+    pub fn new(encrypted: bool, path: Option<String>) -> Self {
+        let path = path.unwrap_or_else(|| {
+            let current_path = env::current_dir().unwrap().to_string_lossy().to_string();
+            if encrypted {
+                current_path + "/store.enc"
+            }else {
+                current_path + "/store.yaml"
+            }
+        });
+        Self { encrypted, path }
     }
 }
 
@@ -27,12 +35,12 @@ impl AppStateEvents for SaveStoreState {
             KeyCode::Char(c) => {
                 let mut new_path = self.path.clone();
                 new_path.push(c);
-                SaveStoreState::new(new_path).into()
+                SaveStoreState::new(self.encrypted, Some(new_path)).into()
             }
             KeyCode::Backspace => {
                 let mut new_path = self.path.clone();
                 new_path.pop();
-                SaveStoreState::new(new_path).into()
+                SaveStoreState::new(self.encrypted, Some(new_path)).into()
             }
             KeyCode::Enter => {
                 if !self.path.is_empty() {
@@ -42,24 +50,32 @@ impl AppStateEvents for SaveStoreState {
                     self.clone().into()
                 }
             }
-            KeyCode::Esc => {
-                MainMenuState::new(MainMenuAction::SaveStore).into()
-            }
-            _ => self.clone().into()
+            KeyCode::Esc => MainMenuState::new(MainMenuAction::SaveStore).into(),
+            _ => self.clone().into(),
         }
     }
 
     fn render(&self, _data: &AppData, frame: &mut Frame, area: Rect) {
-
-        let text = vec![
+        let mut text = vec![
             Line::from("Enter store file path:"),
             Line::from(""),
             Line::from(Span::styled(&self.path, Style::default().fg(Color::Yellow))),
-            Line::from(""),
-            Line::from("Press ENTER to continue, ESC to cancel"),
         ];
 
-        let paragraph = Paragraph::new(text).block(Block::default().borders(Borders::ALL).title("Save Store"));
+        if !self.encrypted {
+            text.push(Line::from(""));
+            text.push(Line::from(Span::styled(
+                "⚠ WARNING: Your store will not be stored encrypted with this function.",
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            )));
+        }
+
+        let paragraph = Paragraph::new(text).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Save Store")
+                .title_bottom("[Esc: Cancel] [Enter: Continue]"),
+        );
 
         frame.render_widget(paragraph, area);
     }
@@ -68,7 +84,14 @@ impl AppStateEvents for SaveStoreState {
 impl SaveStoreState {
     fn try_save_store(self, data: &mut AppData) -> AppState {
         let path = PathBuf::from(&self.path);
-        match data.store_data.save_encrypted(path.clone()) {
+
+        let key = if self.encrypted {
+            Some(data.store_key.clone().unwrap())
+        }else {
+            None
+        };
+
+        match data.store_data.save(key, path.clone()) {
             Ok(msg) => {
                 data.store_path = Some(path);
                 data.message = Some(msg);

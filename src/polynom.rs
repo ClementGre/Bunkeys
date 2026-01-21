@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::FromPrimitive;
 use rand::rngs::OsRng;
-use crate::MODULUS_128;
+use crate::shamir_secret_sharing::MODULUS_128;
 
 pub struct Polynom {
     pub coefficients: Vec<BigUint>,

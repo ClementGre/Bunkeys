@@ -97,7 +97,7 @@ impl AppStateEvents for MainMenuState {
                         LoadStoreState::new(false, data.get_store_path_string_as_yaml()).into()
                     }
                     MainMenuAction::EditStore => {
-                        EditStoreState::new(data).into()
+                        EditStoreState::default().into()
                     }
                     MainMenuAction::SaveStore => {
                         SaveStoreState::new(true, data.get_store_path_string_as_enc()).into()
@@ -181,8 +181,7 @@ impl AppStateEvents for MainMenuState {
                 Constraint::Length(min_desc_width as u16)
             ]
         )
-            .column_spacing(2)
-            .style(Style::default().fg(Color::White));
+            .column_spacing(2);
 
         let num_actions = MainMenuAction::iter().count();
         let table_height = (num_actions + (num_actions - 1)) as u16; // actions + separators

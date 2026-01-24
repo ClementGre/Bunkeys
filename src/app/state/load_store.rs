@@ -84,8 +84,8 @@ impl AppStateEvents for LoadStoreState {
                     LoadStoreState::new_path(self.encrypted, path.with_move_right()).into()
                 }
                 KeyCode::Enter => {
-                    if !path.text.is_empty() {
-                        data.store_path = Some(PathBuf::from(path.text.clone()));
+                    if !path.get_text().is_empty() {
+                        data.store_path = Some(PathBuf::from(path.get_text().clone()));
                         if !self.encrypted {
                             return self.try_load_store(data, None);
                         }
@@ -110,8 +110,8 @@ impl AppStateEvents for LoadStoreState {
                     LoadStoreState::new_key(self.encrypted, raw_key.with_move_right()).into()
                 }
                 KeyCode::Enter => {
-                    if !raw_key.text.is_empty() {
-                        return match Self::parse_raw_key(raw_key.text.clone()) {
+                    if !raw_key.get_text().is_empty() {
+                        return match Self::parse_raw_key(raw_key.get_text().clone()) {
                             Ok(key) => self.try_load_store(data, Some(key)),
                             Err(e) => {
                                 data.error = Some(e);
@@ -141,10 +141,10 @@ impl AppStateEvents for LoadStoreState {
         let text = vec![
             Line::from(prompt),
             Line::from(""),
-            Line::from(Span::styled(input.text.clone(), Style::default().fg(Color::Yellow))),
+            Line::from(Span::styled(input.get_text(), Style::default().fg(Color::Yellow))),
         ];
         frame.set_cursor_position(Position::new(
-            area.x + input.cursor_pos as u16,
+            area.x + input.cursor_char_pos() as u16,
             area.y + 2,
         ));
 

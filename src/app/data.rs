@@ -10,10 +10,12 @@ pub struct AppData {
     pub store_key: Option<Vec<u8>>,
     pub sections: Vec<Section>,
 }
+#[derive(Default)]
 pub struct Section {
     pub(crate) name: String,
     pub(crate) entries: Vec<Entry>,
 }
+#[derive(Default)]
 pub struct Entry {
     pub(crate) key: String,
     pub(crate) value: String,

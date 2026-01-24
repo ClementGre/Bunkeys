@@ -62,7 +62,7 @@ impl AppStateEvents for SaveStoreState {
                 SaveStoreState::from_text_input(self.encrypted, self.path.with_delete_char()).into()
             }
             KeyCode::Enter => {
-                if !self.path.text.is_empty() {
+                if !self.path.get_text().is_empty() {
                     self.clone().try_save_store(data)
                 } else {
                     data.error = Some("Path cannot be empty".to_string());
@@ -79,12 +79,12 @@ impl AppStateEvents for SaveStoreState {
             Line::from("Enter store file path:"),
             Line::from(""),
             Line::from(Span::styled(
-                &self.path.text,
+                self.path.get_text(),
                 Style::default().fg(Color::Yellow),
             )),
         ];
         frame.set_cursor_position(Position::new(
-            area.x + self.path.cursor_pos as u16,
+            area.x + self.path.cursor_char_pos() as u16,
             area.y + 2,
         ));
 
@@ -104,7 +104,7 @@ impl AppStateEvents for SaveStoreState {
 
 impl SaveStoreState {
     fn try_save_store(self, data: &mut AppData) -> AppState {
-        let path = PathBuf::from(&self.path.text);
+        let path = PathBuf::from(&self.path.get_text());
 
         let key = if self.encrypted {
             Some(data.store_key.clone().unwrap())

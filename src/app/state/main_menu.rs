@@ -97,7 +97,7 @@ impl AppStateEvents for MainMenuState {
                         LoadStoreState::new(false, data.get_store_path_string_as_yaml()).into()
                     }
                     MainMenuAction::EditStore => {
-                        EditStoreState::new().into()
+                        EditStoreState::new(data).into()
                     }
                     MainMenuAction::SaveStore => {
                         SaveStoreState::new(true, data.get_store_path_string_as_enc()).into()

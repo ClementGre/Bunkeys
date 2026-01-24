@@ -10,7 +10,6 @@ use crate::app::data::{AppData};
 use crate::app::state::AppStateEvents;
 use crate::app::state::main_menu::{MainMenuAction, MainMenuState};
 use crate::bip39;
-use crate::store::Store;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct InitStoreState {
@@ -63,10 +62,7 @@ impl AppStateEvents for InitStoreState {
         match key.code {
             KeyCode::Enter => {
                 data.store_key = Some(self.generated_key.clone());
-                data.store_data = Store::default();
-                data.store_data.set("example_section", "key", "value".to_string());
-                data.store_data.set("section2", "entry_name", "val".to_string());
-                data.store_data.set("section2", "Nom test", "Secret key".to_string());
+                data.sections = Vec::new();
                 MainMenuState::new(MainMenuAction::EditStore).into()
             }
             KeyCode::Esc => {

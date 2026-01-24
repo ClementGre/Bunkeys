@@ -1,18 +1,43 @@
+use crate::app::data::AppData;
+use crate::app::state::main_menu::{MainMenuAction, MainMenuState};
+use crate::app::state::AppStateEvents;
+use crate::app::text_input::TextInput;
+use crate::app::AppState;
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::widgets::{List, ListItem};
-use crate::app::AppState;
-use crate::app::data::AppData;
-use crate::app::state::AppStateEvents;
-use crate::app::state::main_menu::{MainMenuAction, MainMenuState};
+use ratatui::Frame;
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct EditStoreState;
+pub struct EditStoreState {
+    // Position of the current item
+    section_index: Option<usize>,
+    entry_index: Option<usize>,
+    is_content: bool,
+    //
+    is_editing: bool,
+    input: TextInput,
+}
 
 impl EditStoreState {
-    pub fn new() -> Self {
-        Self
+    pub fn new(data: &mut AppData) -> Self {
+        let section_index = if data.sections.len() > 0 {
+            Some(0)
+        } else {
+            None
+        };
+        let entry_index = section_index.and_then(|si| {
+            data.sections
+                .get(si)
+                .and_then(|s| if s.entries.len() > 0 { Some(0) } else { None })
+        });
+
+        Self {
+            section_index,
+            entry_index,
+            is_content: true,
+            ..Default::default()
+        }
     }
 }
 
@@ -27,9 +52,7 @@ impl AppStateEvents for EditStoreState {
 
     fn handle_key(&self, _data: &mut AppData, key: KeyEvent) -> AppState {
         match key.code {
-            KeyCode::Esc => {
-                MainMenuState::new(MainMenuAction::EditStore).into()
-            }
+            KeyCode::Esc => MainMenuState::new(MainMenuAction::EditStore).into(),
             _ => {
                 // TODO: Implement store editing (add/edit/delete sections and entries)
                 self.clone().into()
@@ -40,16 +63,15 @@ impl AppStateEvents for EditStoreState {
     fn render(&self, data: &AppData, frame: &mut Frame, area: Rect) {
         let mut items = Vec::new();
 
-        if data.store_data.list_sections().len() == 0 {
-            items.push(ListItem::new("Store is empty"));
-        } else {
-            for section in data.store_data.list_sections() {
-                items.push(ListItem::new(format!("{}:", section)));
-                for entry in data.store_data.list_entries(section) {
-                    items.push(ListItem::new(format!("  {}: {}", entry, data.store_data.get(section, entry).unwrap())))
-                }
+        for (si, section) in data.sections.iter().enumerate() {
+            items.push(ListItem::new(format!("{}:", section.name)));
+
+            for (ei, entry) in section.entries.iter().enumerate() {
+                items.push(ListItem::new(format!("  {}: {}", entry.key, entry.value)))
             }
+            items.push(ListItem::new("  Add Entry"));
         }
+        items.push(ListItem::new("Add Section"));
 
         let list = List::new(items);
         frame.render_widget(list, area);

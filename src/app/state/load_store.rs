@@ -208,7 +208,7 @@ impl LoadStoreState {
         // Try to load and decrypt the file
         match Store::load(key.clone(), path.clone()) {
             Ok(store) => {
-                data.store_data = store;
+                data.sections = store.to_sections();
                 if key.is_some() {
                     data.store_key = key;
                 }

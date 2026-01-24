@@ -1,53 +1,48 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use indexmap::IndexMap;
+use crate::app::data::{Entry, Section};
 use crate::encrypt::{decrypt_string, encrypt_string};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Store {
     /// Section name -> Entry name -> Entry value
     #[serde(flatten)]
-    store: HashMap<String, HashMap<String, String>>,
+    sections: IndexMap<String, IndexMap<String, String>>,
 }
 
 impl Store {
-    // Getters
-    pub fn list_sections(&self) -> Vec<&String> {
-        self.store.keys().collect()
+    pub fn from_sections(sections: &Vec<Section>) -> Self {
+        let sections = sections
+            .iter()
+            .map(|section| {
+                let entries = section
+                    .entries
+                    .iter()
+                    .map(|entry| (entry.key.clone(), entry.value.clone()))
+                    .collect();
+                (section.name.clone(), entries)
+            })
+            .collect();
+        Self { sections }
     }
-    pub fn list_entries(&self, section: &str) -> Vec<&String> {
-        self.store
-            .get(section)
-            .map(|h| h.keys().collect())
-            .unwrap_or(Vec::default())
-    }
-    pub fn get(&self, section: &String, key: &String) -> Option<&String> {
-        self.store.get(section)?.get(key)
-    }
-    // Setters
-    pub fn set(&mut self, section: &str, key: &str, value: String) {
-        self.store
-            .entry(section.to_string())
-            .or_insert_with(HashMap::new)
-            .insert(key.to_string(), value);
-    }
-    pub fn add_section(&mut self, section: String) {
-        self.store.insert(section, HashMap::new());
-    }
-    pub fn remove_section(&mut self, section: &str) {
-        self.store.remove(section);
-    }
-    pub fn remove_entry(&mut self, section: &str, entry: &str) {
-        self.store
-            .entry(section.to_string())
-            .or_insert_with(HashMap::new)
-            .remove(entry);
+    pub fn to_sections(self) -> Vec<Section> {
+        self.sections
+            .into_iter()
+            .map(|(name, entries_map)| Section {
+                name,
+                entries: entries_map
+                    .into_iter()
+                    .map(|(key, value)| Entry { key, value })
+                    .collect(),
+            })
+            .collect()
     }
 
     pub fn load(encryption_key: Option<Vec<u8>>, path: PathBuf) -> Result<Store, String> {
         // Read the encrypted data from the file
-       let encrypted_data = match fs::read(path) {
+        let encrypted_data = match fs::read(path) {
             Ok(encrypted_data) => encrypted_data,
             Err(e) => return Err(format!("Failed to read file: {}", e)),
         };
@@ -56,9 +51,9 @@ impl Store {
         let yaml_data = if let Some(key) = encryption_key {
             match decrypt_string(key, encrypted_data) {
                 Ok(data) => data,
-                Err(e) => return Err(format!("Failed to decrypt store data: {}", e))
+                Err(e) => return Err(format!("Failed to decrypt store data: {}", e)),
             }
-        }else {
+        } else {
             encrypted_data
         };
 
@@ -79,9 +74,9 @@ impl Store {
         let encrypted_data = if let Some(key) = encryption_key {
             match encrypt_string(key, yaml_data) {
                 Ok(data) => data,
-                Err(e) => return Err(format!("Failed to encrypt store data: {}", e))
+                Err(e) => return Err(format!("Failed to encrypt store data: {}", e)),
             }
-        }else {
+        } else {
             yaml_data
         };
 

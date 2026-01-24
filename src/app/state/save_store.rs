@@ -9,6 +9,7 @@ use ratatui::Frame;
 use std::env;
 use std::path::PathBuf;
 use crate::app::text_input::TextInput;
+use crate::store::Store;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SaveStoreState {
@@ -111,7 +112,7 @@ impl SaveStoreState {
             None
         };
 
-        match data.store_data.save(key, path.clone()) {
+        match Store::from_sections(&data.sections).save(key, path.clone()) {
             Ok(msg) => {
                 data.store_path = Some(path);
                 data.message = Some(msg);

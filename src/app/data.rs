@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use crate::store::Store;
 
 pub struct AppData {
     // Status
@@ -9,7 +8,15 @@ pub struct AppData {
     // Store data
     pub store_path: Option<PathBuf>,
     pub store_key: Option<Vec<u8>>,
-    pub store_data: Store,
+    pub sections: Vec<Section>,
+}
+pub struct Section {
+    pub(crate) name: String,
+    pub(crate) entries: Vec<Entry>,
+}
+pub struct Entry {
+    pub(crate) key: String,
+    pub(crate) value: String,
 }
 
 impl Default for AppData {
@@ -19,7 +26,7 @@ impl Default for AppData {
             error: None,
             store_path: None,
             store_key: None,
-            store_data: Store::default(),
+            sections: Vec::new(),
         }
     }
 }

@@ -5,6 +5,7 @@ use crate::app::text_input::TextInput;
 use crate::app::AppState;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::layout::Rect;
+use ratatui::prelude::Position;
 use ratatui::style::{Color, Style};
 use ratatui::widgets::{List, ListItem};
 use ratatui::Frame;
@@ -142,7 +143,10 @@ impl AppStateEvents for EditStoreState {
                     }
                 }
                 EditStoreSelection::EntryKey(si, ei) => {
-                    data.message = Some(format!("Deleted entry '{}'.", data.sections[si].entries[ei].key));
+                    data.message = Some(format!(
+                        "Deleted entry '{}'.",
+                        data.sections[si].entries[ei].key
+                    ));
                     data.sections[si].entries.remove(ei);
                     if self.flattened_index >= 2 {
                         new_state.flattened_index -= 2;
@@ -150,13 +154,19 @@ impl AppStateEvents for EditStoreState {
                 }
                 EditStoreSelection::EntryValue(si, ei) => {
                     if data.sections[si].entries[ei].value.is_empty() {
-                        data.message = Some(format!("Deleted entry '{}'.", data.sections[si].entries[ei].key));
+                        data.message = Some(format!(
+                            "Deleted entry '{}'.",
+                            data.sections[si].entries[ei].key
+                        ));
                         data.sections[si].entries.remove(ei);
                         if self.flattened_index >= 2 {
                             new_state.flattened_index -= 2;
                         }
                     } else {
-                        data.message = Some(format!("Emptied entry '{}'.", data.sections[si].entries[ei].key));
+                        data.message = Some(format!(
+                            "Emptied entry '{}'.",
+                            data.sections[si].entries[ei].key
+                        ));
                         data.sections[si].entries[ei].value = String::new();
                     }
                 }
@@ -165,15 +175,22 @@ impl AppStateEvents for EditStoreState {
             KeyCode::Enter if { !self.is_editing } => {
                 match selected {
                     EditStoreSelection::Section(si) => {
-                        data.message = Some(format!("Renaming section '{}'.", data.sections[si].name));
+                        data.message =
+                            Some(format!("Renaming section '{}'.", data.sections[si].name));
                         new_state.was_created = false;
                     }
                     EditStoreSelection::EntryKey(si, ei) => {
-                        data.message = Some(format!("Renaming entry '{}'.", data.sections[si].entries[ei].key));
+                        data.message = Some(format!(
+                            "Renaming entry '{}'.",
+                            data.sections[si].entries[ei].key
+                        ));
                         new_state.was_created = false;
                     }
                     EditStoreSelection::EntryValue(si, ei) => {
-                        data.message = Some(format!("Editing entry '{}'.", data.sections[si].entries[ei].key));
+                        data.message = Some(format!(
+                            "Editing entry '{}'.",
+                            data.sections[si].entries[ei].key
+                        ));
                         new_state.was_created = false;
                     }
                     EditStoreSelection::AddSection => {
@@ -185,7 +202,8 @@ impl AppStateEvents for EditStoreState {
                     }
                     EditStoreSelection::AddEntry(si) => {
                         data.sections[si].entries.push(Entry::default());
-                        new_state.flattened_index = new_state.flattened_index - (new_state.flattened_index % 2);
+                        new_state.flattened_index =
+                            new_state.flattened_index - (new_state.flattened_index % 2);
                         new_state.was_created = true;
                         data.message = Some("Entry created. Please type in its name".to_string());
                     }
@@ -209,24 +227,49 @@ impl AppStateEvents for EditStoreState {
             KeyCode::Enter if { self.is_editing } => {
                 match selected {
                     EditStoreSelection::Section(si) => {
-                        if data.sections.iter().any(|s| s.name == *self.input.get_text()) {
-                            data.error = Some(format!("Section with name '{}' already exists.", self.input.get_text()));
+                        if data
+                            .sections
+                            .iter()
+                            .enumerate()
+                            .any(|(sj, s)| sj != si && s.name == *self.input.get_text())
+                        {
+                            data.error = Some(format!(
+                                "Section with name '{}' already exists.",
+                                self.input.get_text()
+                            ));
                             return self.clone().into();
                         }
                         data.sections[si].name = self.input.get_text().clone();
-                        data.message = Some(format!("Section '{}' successfully renamed.", self.input.get_text()));
+                        data.message = Some(format!(
+                            "Section '{}' successfully renamed.",
+                            self.input.get_text()
+                        ));
                     }
                     EditStoreSelection::EntryKey(si, ei) => {
-                        if data.sections[si].entries.iter().any(|e| e.key == *self.input.get_text()) {
-                            data.error = Some(format!("Entry with name '{}' already exists.", self.input.get_text()));
+                        if data.sections[si]
+                            .entries
+                            .iter()
+                            .enumerate()
+                            .any(|(ej, e)| ej != ei && e.key == *self.input.get_text())
+                        {
+                            data.error = Some(format!(
+                                "Entry with name '{}' already exists.",
+                                self.input.get_text()
+                            ));
                             return self.clone().into();
                         }
                         data.sections[si].entries[ei].key = self.input.get_text().clone();
-                        data.message = Some(format!("Entry '{}' successfully renamed.", self.input.get_text()));
+                        data.message = Some(format!(
+                            "Entry '{}' successfully renamed.",
+                            self.input.get_text()
+                        ));
                     }
                     EditStoreSelection::EntryValue(si, ei) => {
                         data.sections[si].entries[ei].value = self.input.get_text().clone();
-                        data.message = Some(format!("Entry '{}' successfully updated.", data.sections[si].entries[ei].key));
+                        data.message = Some(format!(
+                            "Entry '{}' successfully updated.",
+                            data.sections[si].entries[ei].key
+                        ));
                     }
                     _ => {}
                 }
@@ -236,7 +279,12 @@ impl AppStateEvents for EditStoreState {
                 new_state.is_editing = false;
                 if self.was_created {
                     // Delete entry/section if it was created
-                    return new_state.handle_key(data, KeyEvent::new(KeyCode::Backspace, KeyModifiers::empty())).into();
+                    return new_state
+                        .handle_key(
+                            data,
+                            KeyEvent::new(KeyCode::Backspace, KeyModifiers::empty()),
+                        )
+                        .into();
                 }
             }
             _ => {}
@@ -247,35 +295,64 @@ impl AppStateEvents for EditStoreState {
     fn render(&self, data: &AppData, frame: &mut Frame, area: Rect) {
         let mut items = Vec::new();
         let selected = self.get_selected_item(data);
+        let mut current_line = 0u16;
         for (si, section) in data.sections.iter().enumerate() {
             // Section header
             items.push(match selected {
                 EditStoreSelection::Section(sj) if sj == si && !self.is_editing => {
-                    ListItem::new(format!("📁 [{}]:", section.name))
+                    ListItem::new(format!("📁 {}:", section.name))
                         .style(Style::default().bg(Color::DarkGray))
                 }
                 EditStoreSelection::Section(sj) if sj == si && self.is_editing => {
-                    ListItem::new(format!("📁 [{}]:", self.input.get_text()))
+                    let prefix_len = "📁 ".chars().count() as u16;
+                    let cursor_offset = self.input.cursor_char_pos() as u16 + 1;
+                    frame.set_cursor_position(Position::new(
+                        area.x + prefix_len + cursor_offset,
+                        area.y + current_line,
+                    ));
+
+                    ListItem::new(format!("📁 {}:", self.input.get_text()))
                         .style(Style::default().bg(Color::DarkGray))
                 }
                 _ => ListItem::new(format!("📁 {}:", section.name)),
             });
+            current_line += 1;
 
             // Entries
             for (ei, entry) in section.entries.iter().enumerate() {
                 let mut is_selected = true;
                 let mut item = match selected {
-                    EditStoreSelection::EntryKey(sj, ej) if { sj == si && ej == ei && !self.is_editing } => {
-                        ListItem::new(format!("  📄 [{}]: {}", entry.key, entry.value))
+                    EditStoreSelection::EntryKey(sj, ej)
+                        if { sj == si && ej == ei && !self.is_editing } =>
+                    {
+                        ListItem::new(format!("  📄 {}: {}", entry.key, entry.value))
                     }
-                    EditStoreSelection::EntryKey(sj, ej) if { sj == si && ej == ei && self.is_editing } => {
-                        ListItem::new(format!("  📄 [{}]: {}", self.input.get_text(), entry.value))
+                    EditStoreSelection::EntryKey(sj, ej)
+                        if { sj == si && ej == ei && self.is_editing } =>
+                    {
+                        let prefix_len = "  📄 ".chars().count() as u16;
+                        let cursor_offset = self.input.cursor_char_pos() as u16 + 1;
+                        frame.set_cursor_position(Position::new(
+                            area.x + prefix_len + cursor_offset,
+                            area.y + current_line,
+                        ));
+                        ListItem::new(format!("  📄 {}: {}", self.input.get_text(), entry.value))
                     }
-                    EditStoreSelection::EntryValue(sj, ej) if { sj == si && ej == ei && !self.is_editing } => {
-                        ListItem::new(format!("  📄 {}: [{}]", entry.key, entry.value))
+                    EditStoreSelection::EntryValue(sj, ej)
+                        if { sj == si && ej == ei && !self.is_editing } =>
+                    {
+                        ListItem::new(format!("  📄 {}: {}", entry.key, entry.value))
                     }
-                    EditStoreSelection::EntryValue(sj, ej) if { sj == si && ej == ei && self.is_editing } => {
-                        ListItem::new(format!("  📄 {}: [{}]", entry.key, self.input.get_text()))
+                    EditStoreSelection::EntryValue(sj, ej)
+                        if { sj == si && ej == ei && self.is_editing } =>
+                    {
+                        let prefix_len = format!("  📄 {}: ", entry.key).chars().count() as u16;
+                        let cursor_offset = self.input.cursor_char_pos() as u16 + 1;
+                        frame.set_cursor_position(Position::new(
+                            area.x + prefix_len + cursor_offset,
+                            area.y + current_line,
+                        ));
+                        ListItem::new(format!("  📄 {}: {}", entry.key, self.input.get_text()))
                     }
                     _ => {
                         is_selected = false;
@@ -286,6 +363,7 @@ impl AppStateEvents for EditStoreState {
                     item = item.style(Style::default().bg(Color::DarkGray))
                 }
                 items.push(item);
+                current_line += 1;
             }
 
             // "Add Entry" option
@@ -296,6 +374,7 @@ impl AppStateEvents for EditStoreState {
                 _ => Style::default().fg(Color::Gray),
             };
             items.push(ListItem::new("  ➕ Add Entry").style(style));
+            current_line += 1;
         }
 
         // "Add Section" option

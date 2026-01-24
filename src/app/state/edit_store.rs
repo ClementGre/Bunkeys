@@ -6,7 +6,8 @@ use crate::app::AppState;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::layout::Rect;
 use ratatui::prelude::Position;
-use ratatui::style::{Color, Style};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{List, ListItem};
 use ratatui::Frame;
 
@@ -45,6 +46,48 @@ impl EditStoreState {
             .sum::<usize>()
             + 2
     }
+
+    fn create_section_line<'l>(&'l self, name: &'l String) -> ListItem<'l> {
+        let line = Line::from(vec![
+            Span::raw("📁 "),
+            if self.is_editing {
+                Span::styled(self.input.get_text(), Style::default().fg(Color::Yellow))
+            } else {
+                Span::styled(name, Style::default().add_modifier(Modifier::UNDERLINED))
+            },
+            Span::raw(":"),
+        ]);
+        ListItem::new(line).style(Style::default().bg(Color::DarkGray))
+    }
+
+    fn create_entry_line<'l>(
+        &'l self,
+        key: &'l String,
+        value: &'l String,
+        key_selected: bool,
+        value_selected: bool,
+    ) -> ListItem<'l> {
+        let line = Line::from(vec![
+            Span::raw("  📄 "),
+            if key_selected && self.is_editing {
+                Span::styled(self.input.get_text(), Style::default().fg(Color::Yellow))
+            } else if key_selected {
+                Span::styled(key, Style::default().add_modifier(Modifier::UNDERLINED))
+            } else {
+                Span::raw(key)
+            },
+            Span::raw(": "),
+            if value_selected && self.is_editing {
+                Span::styled(self.input.get_text(), Style::default().fg(Color::Yellow))
+            } else if value_selected {
+                Span::styled(value, Style::default().add_modifier(Modifier::UNDERLINED))
+            } else {
+                Span::raw(value)
+            },
+        ]);
+        ListItem::new(line)
+    }
+
     fn get_selected_item(&self, data: &AppData) -> EditStoreSelection {
         let mut i = 0;
         for (si, section) in data.sections.iter().enumerate() {
@@ -299,20 +342,16 @@ impl AppStateEvents for EditStoreState {
         for (si, section) in data.sections.iter().enumerate() {
             // Section header
             items.push(match selected {
-                EditStoreSelection::Section(sj) if sj == si && !self.is_editing => {
-                    ListItem::new(format!("📁 {}:", section.name))
-                        .style(Style::default().bg(Color::DarkGray))
-                }
-                EditStoreSelection::Section(sj) if sj == si && self.is_editing => {
-                    let prefix_len = "📁 ".chars().count() as u16;
-                    let cursor_offset = self.input.cursor_char_pos() as u16 + 1;
-                    frame.set_cursor_position(Position::new(
-                        area.x + prefix_len + cursor_offset,
-                        area.y + current_line,
-                    ));
-
-                    ListItem::new(format!("📁 {}:", self.input.get_text()))
-                        .style(Style::default().bg(Color::DarkGray))
+                EditStoreSelection::Section(sj) if sj == si => {
+                    if self.is_editing {
+                        let prefix_len = "📁 ".chars().count() as u16;
+                        let cursor_offset = self.input.cursor_char_pos() as u16 + 1;
+                        frame.set_cursor_position(Position::new(
+                            area.x + prefix_len + cursor_offset,
+                            area.y + current_line,
+                        ));
+                    }
+                    self.create_section_line(&section.name)
                 }
                 _ => ListItem::new(format!("📁 {}:", section.name)),
             });
@@ -322,37 +361,27 @@ impl AppStateEvents for EditStoreState {
             for (ei, entry) in section.entries.iter().enumerate() {
                 let mut is_selected = true;
                 let mut item = match selected {
-                    EditStoreSelection::EntryKey(sj, ej)
-                        if { sj == si && ej == ei && !self.is_editing } =>
-                    {
-                        ListItem::new(format!("  📄 {}: {}", entry.key, entry.value))
+                    EditStoreSelection::EntryKey(sj, ej) if sj == si && ej == ei => {
+                        if self.is_editing {
+                            let prefix_len = "  📄 ".chars().count() as u16;
+                            let cursor_offset = self.input.cursor_char_pos() as u16 + 1;
+                            frame.set_cursor_position(Position::new(
+                                area.x + prefix_len + cursor_offset,
+                                area.y + current_line,
+                            ));
+                        }
+                        self.create_entry_line(&entry.key, &entry.value, true, false)
                     }
-                    EditStoreSelection::EntryKey(sj, ej)
-                        if { sj == si && ej == ei && self.is_editing } =>
-                    {
-                        let prefix_len = "  📄 ".chars().count() as u16;
-                        let cursor_offset = self.input.cursor_char_pos() as u16 + 1;
-                        frame.set_cursor_position(Position::new(
-                            area.x + prefix_len + cursor_offset,
-                            area.y + current_line,
-                        ));
-                        ListItem::new(format!("  📄 {}: {}", self.input.get_text(), entry.value))
-                    }
-                    EditStoreSelection::EntryValue(sj, ej)
-                        if { sj == si && ej == ei && !self.is_editing } =>
-                    {
-                        ListItem::new(format!("  📄 {}: {}", entry.key, entry.value))
-                    }
-                    EditStoreSelection::EntryValue(sj, ej)
-                        if { sj == si && ej == ei && self.is_editing } =>
-                    {
-                        let prefix_len = format!("  📄 {}: ", entry.key).chars().count() as u16;
-                        let cursor_offset = self.input.cursor_char_pos() as u16 + 1;
-                        frame.set_cursor_position(Position::new(
-                            area.x + prefix_len + cursor_offset,
-                            area.y + current_line,
-                        ));
-                        ListItem::new(format!("  📄 {}: {}", entry.key, self.input.get_text()))
+                    EditStoreSelection::EntryValue(sj, ej) if sj == si && ej == ei => {
+                        if self.is_editing {
+                            let prefix_len = format!("  📄 {}: ", entry.key).chars().count() as u16;
+                            let cursor_offset = self.input.cursor_char_pos() as u16 + 1;
+                            frame.set_cursor_position(Position::new(
+                                area.x + prefix_len + cursor_offset,
+                                area.y + current_line,
+                            ));
+                        }
+                        self.create_entry_line(&entry.key, &entry.value, false, true)
                     }
                     _ => {
                         is_selected = false;

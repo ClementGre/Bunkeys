@@ -3,7 +3,6 @@ use crate::app::state::main_menu::{MainMenuAction, MainMenuState};
 use crate::app::state::AppStateEvents;
 use crate::app::text_input::TextInput;
 use crate::app::AppState;
-use crate::bip39;
 use crate::store::Store;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Position, Rect};
@@ -12,6 +11,7 @@ use ratatui::widgets::Paragraph;
 use ratatui::Frame;
 use std::env;
 use std::path::PathBuf;
+use bip39::Mnemonic;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AppLoadStoreStep {
@@ -158,24 +158,19 @@ impl LoadStoreState {
     fn parse_raw_key(raw_key: String) -> Result<Vec<u8>, String> {
         Ok(if raw_key.contains(' ') {
             // It's a mnemonic
-            match bip39::Bip39::new() {
-                Ok(bip39) => match bip39.decode(&raw_key) {
-                    Ok(bigint) => {
-                        let bytes = bigint.to_bytes_be();
-                        if bytes.len() <= 32 {
-                            let mut key = vec![0u8; 32 - bytes.len()];
-                            key.extend_from_slice(&bytes);
-                            key
-                        } else {
-                            return Err("Key too long".to_string());
-                        }
-                    }
-                    Err(e) => {
-                        return Err(format!("Failed to decode mnemonic: {}", e));
+            match Mnemonic::parse(&raw_key) {
+                Ok(mnemonic) => {
+                    let bytes = mnemonic.to_entropy();
+                    if bytes.len() <= 32 {
+                        let mut key = vec![0u8; 32 - bytes.len()];
+                        key.extend_from_slice(&bytes);
+                        key
+                    } else {
+                        return Err("Key too long".to_string());
                     }
                 },
                 Err(e) => {
-                    return Err(format!("Failed to initialize BIP39: {}", e));
+                    return Err(format!("Failed to decode Mnemonic: {}", e));
                 }
             }
         } else {

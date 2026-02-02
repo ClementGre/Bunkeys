@@ -22,3 +22,4 @@ strum = "0.27.2"
 strum_macros = "0.27.2"         # Error handling
 enum_dispatch = "0.3.13"
 indexmap = { version = "2.13.0", features = ["serde"] }
+bip39 = "2.2.2"

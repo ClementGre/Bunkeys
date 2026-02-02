@@ -1,15 +1,15 @@
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::Frame;
-use ratatui::layout::Rect;
+use crate::app::data::AppData;
+use crate::app::state::main_menu::{MainMenuAction, MainMenuState};
+use crate::app::state::AppStateEvents;
+use crate::app::AppState;
 use aead::OsRng;
+use bip39::Mnemonic;
+use crossterm::event::{KeyCode, KeyEvent};
 use rand::RngCore;
+use ratatui::layout::Rect;
 use ratatui::prelude::{Color, Line, Modifier, Span, Style};
 use ratatui::widgets::{Paragraph, Wrap};
-use crate::app::AppState;
-use crate::app::data::{AppData};
-use crate::app::state::AppStateEvents;
-use crate::app::state::main_menu::{MainMenuAction, MainMenuState};
-use crate::bip39;
+use ratatui::Frame;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct InitStoreState {
@@ -23,23 +23,14 @@ impl InitStoreState {
         let mut key = [0u8; 32];
         rng.fill_bytes(&mut key);
 
-        // Convert key to BIP39 mnemonic
-        let key_bigint = num_bigint::BigUint::from_bytes_be(&key);
-        match bip39::Bip39::new() {
-            Ok(bip39) => {
-                match bip39.encode(&key_bigint) {
-                    Ok(mnemonic) => {
-                        data.message = Some("Store initialized successfully!".to_string());
-                        Self {
-                            generated_key: key.to_vec(),
-                            generated_mnemonic: mnemonic,
-                        }.into()
-                    }
-                    Err(e) => {
-                        data.error = Some(format!("Failed to encode mnemonic: {}", e));
-                        MainMenuState::new(MainMenuAction::InitStore).into()
-                    }
+        match Mnemonic::from_entropy(&key) {
+            Ok(mnemonic) => {
+                data.message = Some("Store initialized successfully!".to_string());
+                Self {
+                    generated_key: key.to_vec(),
+                    generated_mnemonic: mnemonic.to_string(),
                 }
+                .into()
             }
             Err(e) => {
                 data.error = Some(format!("Failed to initialize BIP39: {}", e));
@@ -65,17 +56,17 @@ impl AppStateEvents for InitStoreState {
                 data.sections = Vec::new();
                 MainMenuState::new(MainMenuAction::EditStore).into()
             }
-            KeyCode::Esc => {
-                MainMenuState::new(MainMenuAction::InitStore).into()
-            }
-            _ => self.clone().into()
+            KeyCode::Esc => MainMenuState::new(MainMenuAction::InitStore).into(),
+            _ => self.clone().into(),
         }
     }
 
     fn render(&self, _data: &AppData, frame: &mut Frame, area: Rect) {
         let mut text = Vec::new();
 
-        text.push(Line::from("New 256-bit key generated!").style(Style::default().fg(Color::Green)));
+        text.push(
+            Line::from("New 256-bit key generated!").style(Style::default().fg(Color::Green)),
+        );
         text.push(Line::from(""));
 
         // Hex key

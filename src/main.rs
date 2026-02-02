@@ -3,7 +3,6 @@ use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::DefaultTerminal;
 
 mod app;
-mod bip39;
 mod encrypt;
 mod polynom;
 mod shamir_secret_sharing;

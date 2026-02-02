@@ -1,8 +1,9 @@
+use bip39::Mnemonic;
 use lazy_static::lazy_static;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::FromPrimitive;
 use rand::rngs::OsRng;
-use crate::{bip39, polynom};
+use crate::polynom;
 
 lazy_static! {
     // 128-bit prime modulus (2¹²⁷ - 1)
@@ -17,9 +18,8 @@ lazy_static! {
 
 pub fn shamir_test() {
     let mut rng = OsRng::default();
-    let bip39 = bip39::Bip39::new().unwrap();
     let secret = rng.gen_biguint(127);
-    let secret_mnemonic = bip39.encode(&secret).unwrap();
+    let secret_mnemonic = Mnemonic::from_entropy(&secret.to_bytes_be()).unwrap().to_string();
     let points_number: u64 = 6;
     let threshold: usize = 3;
 
@@ -54,7 +54,7 @@ pub fn shamir_test() {
         let secret_reconstituted = get_polynom_constant_value(&combo_points);
         //println!("Secret recostituted from points {} is {}", combo_points.iter().map(|(x, y)| format!("({}, {})", x, y)).collect::<Vec<String>>().join(", "), secret_reconstituted);
         assert_eq!(secret_reconstituted, secret);
-        let secret_mnemonic_reconstituted = bip39.encode(&secret_reconstituted).unwrap();
+        let secret_mnemonic_reconstituted = Mnemonic::from_entropy(&secret_reconstituted.to_bytes_be()).unwrap().to_string();
         assert_eq!(secret_mnemonic, secret_mnemonic_reconstituted);
     }
 }
